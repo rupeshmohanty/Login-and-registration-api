@@ -44,6 +44,16 @@ app.use((req,res,next) => {
     next();
 });
 
+//checkAuth - for logged in or not checking purposes
+function checkAuth(req, res, next) {
+    if(!req.session.user._id){
+        req.flash('error_msg','You are not authorized to view this page!');
+        res.render('login');
+    } else {
+        next();
+    }
+}
+
 //EJS
 app.use(expressLayouts);
 app.set('view engine','ejs');
@@ -64,9 +74,9 @@ app.get('/register',(req,res)=>{
     res.render('register');
 });
 
-app.get('/dashboard',(req,res) => {
+app.get('/dashboard',checkAuth,(req,res) => {
     res.render('dashboard',{
-        name: req.user.name
+        name : req.user.name
     });
 });
 
@@ -154,15 +164,25 @@ app.post('/login',(req,res,next) => {
     User.findOne({ email: email })
     .then(user => {
         if(!user){
-            errors.push({ msg : 'Email not registered!' });
+            req.flash('error_msg','Email id not registered!');
             res.render('login');
         }
 
+        
         //Match password
-        if( password !== user.password ){
-            errors.push({ msg : 'Password is incorrect!' });
+        
+        bcrypt.genSalt(10, (err,salt) => 
+                    bcrypt.hash(req.body.password,salt,(err,hash)=>{
+                        if(err) throw err;
+                        // set password to hashed
+                        req.body.password = hash;
+                }));
+
+        if( password !== req.body.password ){
+            req.flash('error_msg','Password is incorrect!');
             res.render('login');
         } else {
+            req.session.user._id = check_id;
             res.redirect('dashboard');
         }
     })
